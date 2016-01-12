@@ -3,19 +3,43 @@
 #include <message_filters/sync_policies/approximate_time.h>
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/PointCloud2.h>
-#include <pcl/common/common.h>
+#include <sensor_msgs/image_encodings.h>
+#include <cv_bridge/cv_bridge.h>
+#include <opencv2/opencv.hpp>
+#include <pcl_ros/io/pcd_io.h>
 
 using namespace sensor_msgs;
 using namespace message_filters;
 
 typedef sensor_msgs::PointCloud2 PointCloudT;
 
+namespace enc = sensor_msgs::image_encodings;
+
 void callback(const PointCloudT::ConstPtr& cloud1,
               const PointCloudT::ConstPtr& cloud2,
               const PointCloudT::ConstPtr& clouds,
               const ImageConstPtr& image )
 {
-  std::cout << "Approximate Callback!" << std::endl;
+  //std::cout << "Approximate Callback!" << std::endl;
+    cv_bridge::CvImageConstPtr cv_ptr = cv_bridge::toCvShare(image, enc::BGR8);
+
+    std::cout << "Caught synchronized callback, saving to file ...";
+
+    std::stringstream ss;
+    ss << "RGB" << image->header.stamp << ".png";
+
+    cv::imwrite(ss.str(), cv_ptr->image);
+    ss.str(std::string());
+    ss << "CLOUD_DX_" << image->header.stamp << ".pcd";
+    pcl::io::savePCDFile(ss.str(),*cloud1);
+    ss.str(std::string());
+    ss << "CLOUD_SX_" << image->header.stamp << ".pcd";
+    pcl::io::savePCDFile(ss.str(),*cloud2);
+    ss.str(std::string());
+    ss << "CLOUD_ZZ_" << image->header.stamp << ".pcd";
+    pcl::io::savePCDFile(ss.str(),*clouds);
+
+    std::cout << "Done" << std::endl;
 }
 
 
