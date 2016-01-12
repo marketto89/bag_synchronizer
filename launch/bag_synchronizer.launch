@@ -1,0 +1,5 @@
+<launch>
+
+	<node pkg="bag_synchronizer" name="bag_synchronizer" type="bag_synchronizer" />
+
+</launch>
