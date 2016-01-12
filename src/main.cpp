@@ -33,7 +33,7 @@ void callback(const PointCloudT::ConstPtr& cloud_dx,
     cv::imwrite(ss.str(), cv_ptr1->image);
     ss.str(std::string());
     ss << "RGB_SX_" << image_dx->header.stamp << ".png";
-    cv::imwrite(ss.str(), cv_ptr1->image);
+    cv::imwrite(ss.str(), cv_ptr2->image);
     ss.str(std::string());
     ss << "CLOUD_DX_" << image_dx->header.stamp << ".pcd";
     pcl::io::savePCDFile(ss.str(),*cloud_dx);
