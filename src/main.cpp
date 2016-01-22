@@ -22,8 +22,10 @@ void callback(const PointCloudT::ConstPtr& cloud_dx,
               const ImageConstPtr& image_sx)
 {
   //std::cout << "Approximate Callback!" << std::endl;
-    cv_bridge::CvImageConstPtr cv_ptr1 = cv_bridge::toCvShare(image_dx, enc::BGR8);
-    cv_bridge::CvImageConstPtr cv_ptr2 = cv_bridge::toCvShare(image_sx, enc::BGR8);
+    cv_bridge::CvImageConstPtr cv_ptr1 = cv_bridge::toCvShare(image_dx,
+                                                              enc::BGR8);
+    cv_bridge::CvImageConstPtr cv_ptr2 = cv_bridge::toCvShare(image_sx,
+                                                              enc::BGR8);
 
 
     std::cout << "Caught synchronized callback, saving to file ...";
@@ -57,12 +59,19 @@ int main(int argc, char** argv)
   message_filters::Subscriber<PointCloudT> cloud1_sub(nh, "/cloud_dx", 1);
   message_filters::Subscriber<PointCloudT> cloud2_sub(nh, "/cloud_sx", 1);
   message_filters::Subscriber<PointCloudT> cloud3_sub(nh, "/clouds", 1);
-  message_filters::Subscriber<Image> image1_sub(nh, "/Kinect_right/rgb/image_color", 1);
-  message_filters::Subscriber<Image> image2_sub(nh, "/Kinect_left/rgb/image_color", 1);
+  message_filters::Subscriber<Image> image1_sub(nh,
+                                                "/Kinect_right/rgb/image_color",
+                                                1);
+  message_filters::Subscriber<Image> image2_sub(nh,
+                                                "/Kinect_left/rgb/image_color",
+                                                1);
 
-  typedef sync_policies::ApproximateTime<PointCloudT, PointCloudT, PointCloudT, Image, Image> MySyncPolicy;
-  // ApproximateTime takes a queue size as its constructor argument, hence MySyncPolicy(10)
-  Synchronizer<MySyncPolicy> sync(MySyncPolicy(100), cloud1_sub, cloud2_sub, cloud3_sub, image1_sub, image2_sub);
+  typedef sync_policies::ApproximateTime<PointCloudT, PointCloudT, PointCloudT,
+          Image, Image> MySyncPolicy;
+  // ApproximateTime takes a queue size as its constructor argument,
+  // hence MySyncPolicy(10)
+  Synchronizer<MySyncPolicy> sync(MySyncPolicy(100), cloud1_sub, cloud2_sub,
+                                  cloud3_sub, image1_sub, image2_sub);
   sync.registerCallback(boost::bind(&callback, _1, _2, _3, _4, _5));
 
   ros::spin();
