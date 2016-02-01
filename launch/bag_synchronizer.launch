@@ -1,5 +1,7 @@
 <launch>
 
-	<node pkg="bag_synchronizer" name="bag_synchronizer" type="bag_synchronizer" />
+	<node pkg="bag_synchronizer" name="bag_synchronizer" type="bag_synchronizer" output="screen">
+		<param name="prefix" value="/home/marco/Datasets/SkeletonClouds/tmp" />
+	</node>
 
 </launch>
