@@ -14,6 +14,7 @@
 using namespace sensor_msgs;
 using namespace message_filters;
 
+
 typedef sensor_msgs::PointCloud2 PointCloudT;
 typedef sensor_msgs::Image Image;
 typedef geometry_msgs::TransformStamped Transform;
@@ -72,38 +73,6 @@ saveDepth(const Image::ConstPtr& msg,
 }
 
 void
-callback2(const PointCloudT::ConstPtr& cloud_right,
-          const PointCloudT::ConstPtr& cloud_left,
-          const PointCloudT::ConstPtr& clouds,
-          const Transform::ConstPtr& transform)
-{
-
-    std::cout << ros::Time::now() <<
-                 "  2 - Caught synchronized callback, saving to file ..." << cloud_right->header.stamp <<
-                 std::flush;
-    Eigen::Affine3d eigen_transf;
-    tf::transformMsgToEigen(transform->transform, eigen_transf);
-
-    std::stringstream filename;
-    filename << _prefix << "/TRANSF_" << cloud_right->header.stamp << ".txt";
-    std::ofstream file(filename.str().c_str());
-    if (file.is_open())
-    {
-        file << eigen_transf.matrix();
-        file.close();
-    }
-    else
-    {
-        ROS_FATAL("Impossible to write transformation to file!");
-    }
-
-    //    saveDepth(depth_image_left, cloud_right->header.stamp, "LEFT");
-    //    saveDepth(depth_image_right, cloud_right->header.stamp, "RIGHT");
-
-    std::cout << "Done" << std::endl;
-}
-
-void
 callback(const PointCloudT::ConstPtr& cloud_right,
          const PointCloudT::ConstPtr& cloud_left,
          const PointCloudT::ConstPtr& clouds,
@@ -112,13 +81,27 @@ callback(const PointCloudT::ConstPtr& cloud_right,
          const Image::ConstPtr& rgb_right,
          const Image::ConstPtr& rgb_left,
          const Image::ConstPtr& depth_right,
-         const Image::ConstPtr& depth_left)
+         const Transform::ConstPtr& transform)
 {
     //std::cout << "Approximate Callback!" << std::endl;
     cv_bridge::CvImageConstPtr cv_ptr_right = cv_bridge::toCvShare(rgb_right,
                                                                    enc::BGR8);
     cv_bridge::CvImageConstPtr cv_ptr_left = cv_bridge::toCvShare(rgb_left,
                                                                   enc::BGR8);
+
+    pcl::PointCloud<pcl::PointXYZRGB> c_r, c_l, c_icp, t_c_r, t_c_l;
+    pcl::fromROSMsg(*cloud_right, c_r);
+    pcl::fromROSMsg(*cloud_left, c_l);
+    pcl::fromROSMsg(*clouds, c_icp);
+    pcl::fromROSMsg(*total_cloud_right, t_c_r);
+    pcl::fromROSMsg(*total_cloud_left, t_c_l);
+
+    if(not( c_r.points.size() > 0 and
+            c_l.points.size() > 0 and
+            c_icp.points.size() > 0 and
+            t_c_r.points.size() > 0 and
+            t_c_l.points.size() > 0) )
+        return;
 
     std::cout << ros::Time::now() <<
                  "  1 - Caught synchronized callback, saving to file ..." << cloud_right->header.stamp <<
@@ -132,21 +115,34 @@ callback(const PointCloudT::ConstPtr& cloud_right,
     cv::imwrite(ss.str(), cv_ptr_left->image);
     ss.str(std::string());
     ss << _prefix << "/CLOUD_RIGHT_" << cloud_right->header.stamp << ".pcd";
-    pcl::io::savePCDFile(ss.str(),*cloud_right);
+    pcl::io::savePCDFileBinary(ss.str(),c_r);
     ss.str(std::string());
     ss << _prefix << "/CLOUD_LEFT_" << cloud_right->header.stamp << ".pcd";
-    pcl::io::savePCDFile(ss.str(),*cloud_left);
+    pcl::io::savePCDFileBinary(ss.str(),c_l);
     ss.str(std::string());
     ss << _prefix << "/TOTAL_CLOUD_RIGHT_" << cloud_right->header.stamp << ".pcd";
-    pcl::io::savePCDFile(ss.str(),*total_cloud_right);
+    pcl::io::savePCDFileBinary(ss.str(), t_c_r);
     ss.str(std::string());
     ss << _prefix << "/TOTAL_CLOUD_LEFT_" << cloud_right->header.stamp << ".pcd";
-    pcl::io::savePCDFile(ss.str(),*total_cloud_left);
+    pcl::io::savePCDFileBinary(ss.str(), t_c_l);
     ss.str(std::string());
     ss << _prefix << "/CLOUD_ICP_" << cloud_right->header.stamp << ".pcd";
-    pcl::io::savePCDFile(ss.str(),*clouds);
+    pcl::io::savePCDFileBinary(ss.str(), c_icp);
     saveDepth(depth_right, cloud_right->header.stamp, "RIGHT");
-    saveDepth(depth_left, cloud_right->header.stamp, "LEFT");
+    Eigen::Affine3d eigen_transf;
+    tf::transformMsgToEigen(transform->transform, eigen_transf);
+    std::stringstream filename;
+    filename << _prefix << "/TRANSF_RIGHT" << cloud_right->header.stamp << ".txt";
+    std::ofstream file(filename.str().c_str());
+    if (file.is_open())
+    {
+        file << eigen_transf.matrix();
+        file.close();
+    }
+    else
+    {
+        ROS_FATAL("Impossible to write transformation to file!");
+    }
 
     std::cout << "Done" << std::endl;
 }
@@ -171,28 +167,18 @@ int main(int argc, char** argv)
     message_filters::Subscriber<Image> rgb_right_sub(nh, "/Kinect_right/rgb/image_rect_color", 1);
     message_filters::Subscriber<Image> rgb_left_sub(nh, "/Kinect_left/rgb/image_rect_color", 1);
     message_filters::Subscriber<Image> depth_right_sub(nh, "/Kinect_right/depth_registered/image", 1);
-    message_filters::Subscriber<Image> depth_left_sub(nh, "/Kinect_left/depth_registered/image", 1);
     message_filters::Subscriber<Transform> transform_sub(nh, "/frontal_transf", 1);
 
     typedef sync_policies::ApproximateTime<PointCloudT, PointCloudT,
-            PointCloudT, PointCloudT, PointCloudT, Image, Image, Image, Image>
+            PointCloudT, PointCloudT, PointCloudT, Image, Image, Image, Transform>
             Sync1Policy;
     // ApproximateTime takes a queue size as its constructor argument,
     // hence MySyncPolicy(10)
     Synchronizer<Sync1Policy> sync(Sync1Policy(10), cloud_right_sub,
                                    cloud_left_sub, clouds_sub, total_cloud_right_sub,
                                    total_cloud_left_sub, rgb_right_sub,
-                                   rgb_left_sub, depth_right_sub, depth_left_sub);
+                                   rgb_left_sub, depth_right_sub, transform_sub);
     sync.registerCallback(boost::bind(&callback, _1, _2, _3, _4, _5, _6, _7, _8, _9));
-
-    typedef sync_policies::ApproximateTime<PointCloudT, PointCloudT,
-            PointCloudT, Transform>
-            Sync2Policy;
-    Synchronizer<Sync2Policy> sync2(Sync2Policy(10), cloud_right_sub,
-                                    cloud_left_sub,
-                                    clouds_sub,
-                                    transform_sub);
-    sync2.registerCallback(boost::bind(&callback2, _1, _2, _3, _4));
 
 
     ros::spin();
