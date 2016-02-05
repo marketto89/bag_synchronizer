@@ -1,7 +1,7 @@
 <launch>
 
 	<node pkg="bag_synchronizer" name="bag_synchronizer" type="bag_synchronizer" output="screen">
-		<param name="prefix" value="/home/marco/Datasets/SkeletonClouds/tmp" />
+		<param name="prefix" value="/home/marco/Datasets/SkeletonClouds/MetodoB" />
 	</node>
 
 </launch>

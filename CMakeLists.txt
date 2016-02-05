@@ -1,7 +1,7 @@
 project(bag_synchronizer)
 
 find_package(catkin REQUIRED
-    COMPONENTS message_filters sensor_msgs cv_bridge)
+    COMPONENTS message_filters sensor_msgs cv_bridge eigen_conversions)
 find_package(PCL 1.7 REQUIRED)
 include_directories(${PCL_INCLUDE_DIRS})
 link_directories(${PCL_LIBRARY_DIRS})
